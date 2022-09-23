@@ -10,27 +10,36 @@ const { PI, max, min } = Math;
  * A CircleType instance creates a circular text element.
  *
  * @param  {HTMLElement} elem A target HTML element.
- * @param {Function} [splitter] An optional function used to split the element's
- *                              text content into individual characters
+ * @param  {Hash} options to set radius, forceHeight, forceWidth
  *
  * @example
  * // Instantiate `CircleType` with an HTML element.
  * const circleType = new CircleType(document.getElementById('myElement'));
  *
- * // Set the text radius and direction. Note: setter methods are chainable.
- * circleType.radius(200).dir(-1);
- *
- * // Provide your own splitter function to handle emojis
- * // @see https://github.com/orling/grapheme-splitter
- * const splitter = new GraphemeSplitter()
- * new CircleType(
- *   document.getElementById('myElement'),
- *   splitter.splitGraphemes.bind(splitter)
- * );
- *
  */
 class CircleType {
-  constructor(elem, splitter) {
+  constructor(elem, options) {
+		const letterMultiplier = {
+			l: 0.55,
+			t: 0.6,
+			f: 0.7,
+			I: 0.6,
+			i: 0.55,
+			j: 0.55,
+			r: 0.65,
+			m: 1.7,
+			w: 1.4,
+			S: 1.2,
+			a: 1.1,
+			b: 1.1,
+			'&nbsp;': 0.7,
+			' ': 0.7,
+			',': 0.6,
+			'.': 0.6,
+			'!': 0.6,
+			';': 0.6,
+			':': 0.6,
+		};
     this.element = elem;
     this.originalHTML = this.element.innerHTML;
 
@@ -40,28 +49,33 @@ class CircleType {
     container.style.position = 'relative';
     this.container = container;
 
-    this._letters = splitNode(elem, splitter);
+    this._letters = splitNode(elem);
     this._letters.forEach(letter => fragment.appendChild(letter));
     container.appendChild(fragment);
 
-    this.element.innerHTML = '';
-    this.element.appendChild(container);
-
     const { fontSize, lineHeight } = window.getComputedStyle(this.element);
 
-    this._fontSize = parseFloat(fontSize);
-    this._lineHeight = parseFloat(lineHeight) || this._fontSize;
-    this._metrics = this._letters.map(getRect);
+    this._fontSize = options.fontSize || parseFloat(fontSize);
+    this._lineHeight = options.lineHeight || parseFloat(lineHeight) || this._fontSize;
+    this._metrics = this._letters.map( (ele) => {
+			let width = this._fontSize / 1.9;
+			let multiplier = letterMultiplier[ele.innerText] || 1;
+
+			return { width: width * multiplier }
+		} );
+
 
     const totalWidth = this._metrics.reduce((sum, { width }) => sum + width, 0);
     this._minRadius = (totalWidth / PI / 2) + this._lineHeight;
 
-    this._dir = 1;
-    this._forceWidth = false;
-    this._forceHeight = true;
-    this._radius = this._minRadius;
+    this._dir = options.direction || 1;
+    this._forceWidth = options.forceWidth || false;
+    this._forceHeight = options.forceHeight || true;
+    this._radius = options.radius || this._minRadius;
 
     this._invalidate();
+
+    return this.container;
   }
 
   /**
